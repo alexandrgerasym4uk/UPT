@@ -1,9 +1,9 @@
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QTimer
-from ui1 import Ui_MainWindow_Start
-from ui2 import Ui_MainWindow_Main
 import os, re, cohere, threading, json
 from tkinter import messagebox
+from ui_adaptive1 import Ui_MainWindow_Start
+from ui_adaptive2 import Ui_MainWindow_Main
 
 
 api_key = 'Zf5HgFaPWLIoFPvzVi0hDhrCSOSjWRzAawiEDiV5'
@@ -113,6 +113,7 @@ class Widget2(QMainWindow):
         self.ui.btn_day_5.clicked.connect(self.btn_5_day)
         self.ui.btn_send.clicked.connect(self.btn_send)
         self.course = read_course()
+        self.btn_1_day()
         if progress[0] == 1:
             if progress[1][0] == 1:
                 self.ui.btn_day_1.setStyleSheet(button_style)
@@ -234,7 +235,7 @@ class Widget1(QMainWindow):
         self.ui.lb_in_course.hide()
         self.ui.le_name.hide()
         self.ui.le_age.hide()
-        self.ui.le_corse.hide()
+        self.ui.le_course.hide()
         self.timer = QTimer()
         self.loading_text = "               Зачекайте, Ваш курс створюється"
         self.dots = 0
@@ -250,9 +251,9 @@ class Widget1(QMainWindow):
             self.ui.lb_in_course.show()
             self.ui.le_name.show()
             self.ui.le_age.show()
-            self.ui.le_corse.show()
+            self.ui.le_course.show()
         elif self.ui.btn_start.text() == "Згенерувати":
-            if self.ui.le_name.text() and self.ui.le_age.text() and self.ui.le_corse.text():
+            if self.ui.le_name.text() and self.ui.le_age.text() and self.ui.le_course.text():
                 self.ui.btn_start.hide()
                 name = self.ui.le_name.text()
                 age = self.ui.le_age.text()
@@ -262,7 +263,7 @@ class Widget1(QMainWindow):
                 self.ui.lb_in_course.hide()
                 self.ui.le_name.hide()
                 self.ui.le_age.hide()
-                self.ui.le_corse.hide()
+                self.ui.le_course.hide()
                 self.ui.lb_text2.show()
                 self.ui.lb_text2.setText("")
                 self.start_loading()
