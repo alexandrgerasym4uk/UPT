@@ -8,7 +8,7 @@ from ui_adaptive2 import Ui_MainWindow_Main
 
 api_key = 'Zf5HgFaPWLIoFPvzVi0hDhrCSOSjWRzAawiEDiV5'
 co = cohere.Client(api_key)
-button_style = '''
+green_style = '''
     QPushButton {
         background-color: green;      
         color: black;                 
@@ -16,6 +16,16 @@ button_style = '''
         border: 1px solid lightgray;  
     }
 '''
+
+red_style = '''
+    QPushButton {
+        background-color: red;      
+        color: black;                 
+        border-radius: 5px;           
+        border: 1px solid lightgray;  
+    }
+'''
+
 progress = [0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
 
 def generate(prompt, max_t):
@@ -38,17 +48,38 @@ def generation(name, age, course):
     Практика:
     - <тести>
 
+    **День 2: <Тема дня>**
+    - <план для вивчення теми>
+    Практика:
+    - <тести>
+
+    **День 3: <Тема дня>**
+    - <план для вивчення теми>
+    Практика:
+    - <тести>
+
+    **День 4: <Тема дня>**
+    - <план для вивчення теми>
+    Практика:
+    - <тести>
+
+    **День 5: <Тема дня>**
+    - <план для вивчення теми>
+    Практика:
+    - <тести>
+    
     Пиши строго по цьому зразку, бо мені треба використовувати твою відповідь і важливий кожен символ'''
     result = generate(text, 3000)
     with open("data/course.txt", 'w', encoding='utf-8') as file:
         file.write(result)
 
 def check_answer(question, answer):
-    text = f'''Перевір тести на предмет загального виконання.
-    завдання: {question}, 
-    відповідь: {answer}
-    Відповідай тільки 'так' або 'ні' обов'язково малими літерами без крапки. якщо ні то поясни'''
-    check = generate(text, 100)
+    text = f'''
+    {question}, 
+    {answer}
+    Перевір загальне виконання тестів. Якщо половина тестів правильна то відповідай '+' 
+    Відповідай тільки '+' або '-' обов'язково малими літерами без крапки. якщо ні то поясни'''
+    check = generate(text, 1)
     print(check)
     return check
 
@@ -116,15 +147,15 @@ class Widget2(QMainWindow):
         self.btn_1_day()
         if progress[0] == 1:
             if progress[1][0] == 1:
-                self.ui.btn_day_1.setStyleSheet(button_style)
+                self.ui.btn_day_1.setStyleSheet(green_style)
             if progress[2][0] == 1:
-                self.ui.btn_day_2.setStyleSheet(button_style)
+                self.ui.btn_day_2.setStyleSheet(green_style)
             if progress[3][0] == 1:
-                self.ui.btn_day_3.setStyleSheet(button_style)
+                self.ui.btn_day_3.setStyleSheet(green_style)
             if progress[4][0] == 1:
-                self.ui.btn_day_4.setStyleSheet(button_style)
+                self.ui.btn_day_4.setStyleSheet(green_style)
             if progress[5][0] == 1:
-                self.ui.btn_day_5.setStyleSheet(button_style)
+                self.ui.btn_day_5.setStyleSheet(green_style)
         else:
             with open("data/progress.json", "w") as file:
                 json.dump([0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], file)
@@ -182,42 +213,52 @@ class Widget2(QMainWindow):
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
                 check = check_answer(self.course[0]['practical'], answer)
-                if check == "так" or check == "Так":
-                    self.ui.btn_day_1.setStyleSheet(button_style)
+                if check == "+":
+                    self.ui.btn_day_1.setStyleSheet(green_style)
                     progress[1][0] = 1
                     progress[1][1] = answer
+                else:
+                    self.ui.btn_day_1.setStyleSheet(red_style)
         elif self.ui.lb_num_day.text() == "День: 2":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
                 check = check_answer(self.course[1]['practical'], answer)
-                if check == "так" or check == "Так":
-                    self.ui.btn_day_2.setStyleSheet(button_style)
+                if check == "+":
+                    self.ui.btn_day_2.setStyleSheet(green_style)
                     progress[2][0] = 1
                     progress[2][1] = answer
+                else:
+                    self.ui.btn_day_2.setStyleSheet(red_style)
         elif self.ui.lb_num_day.text() == "День: 3":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
                 check = check_answer(self.course[2]['practical'], answer)
-                if check == "так" or check == "Так":
-                    self.ui.btn_day_3.setStyleSheet(button_style)
+                if check == "+":
+                    self.ui.btn_day_3.setStyleSheet(green_style)
                     progress[3][0] = 1
                     progress[3][1] = answer
+                else:
+                    self.ui.btn_day_3.setStyleSheet(red_style)
         elif self.ui.lb_num_day.text() == "День: 4":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
                 check = check_answer(self.course[3]['practical'], answer)
-                if check == "так" or check == "Так":
-                    self.ui.btn_day_4.setStyleSheet(button_style)
+                if check == "+":
+                    self.ui.btn_day_4.setStyleSheet(green_style)
                     progress[4][0] = 1
                     progress[4][1] = answer
+                else:
+                    self.ui.btn_day_4.setStyleSheet(red_style)
         elif self.ui.lb_num_day.text() == "День: 5":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
                 check = check_answer(self.course[4]['practical'], answer)
-                if check == "так" or check == "Так":
-                    self.ui.btn_day_5.setStyleSheet(button_style)
+                if check == "+":
+                    self.ui.btn_day_5.setStyleSheet(green_style)
                     progress[5][0] = 1
                     progress[5][1] = answer
+                else:
+                    self.ui.btn_day_5.setStyleSheet(red_style)
         with open("data/progress.json", "w") as file:
             json.dump(progress, file)
         if check_progress():
@@ -257,7 +298,7 @@ class Widget1(QMainWindow):
                 self.ui.btn_start.hide()
                 name = self.ui.le_name.text()
                 age = self.ui.le_age.text()
-                course = self.ui.le_corse.text()
+                course = self.ui.le_course.text()
                 self.ui.lb_in_name.hide()
                 self.ui.lb_in_age.hide()
                 self.ui.lb_in_course.hide()
@@ -298,15 +339,14 @@ class Widget1(QMainWindow):
         self.next_window.show()
 # основна програма
 if os.path.exists("data/course.txt"):
-    with open("data/progress.json", "r") as file: 
-        progress= json.load(file)
-    if check_progress():
-        start_course()
-    else:
-        reply = messagebox.askquestion("", "У вас є згенерований курс, бажаєте продовжити?")
-        if reply == 'yes':
-            continue_course()
+    if messagebox.askquestion("", "У вас є згенерований курс, бажаєте продовжити?") == "yes":
+        with open("data/progress.json", "r") as file: 
+            progress= json.load(file)
+        if check_progress():
+            show_success()
         else:
-            start_course()
+            continue_course()
+    else:
+        start_course()
 else:
     start_course()
