@@ -1,11 +1,11 @@
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QTimer
-import os, re, cohere, threading, json
+import os, re, cohere, threading, json, sys
 from tkinter import messagebox
 from ui_adaptive1 import Ui_MainWindow_Start
 from ui_adaptive2 import Ui_MainWindow_Main
 
-
+'''Необхідні дані для роботи'''
 api_key = 'Zf5HgFaPWLIoFPvzVi0hDhrCSOSjWRzAawiEDiV5'
 co = cohere.Client(api_key)
 green_style = '''
@@ -26,9 +26,11 @@ red_style = '''
     }
 '''
 
-progress = [0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
+#progress = [0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
 
+'''Функції програми'''
 def generate(prompt, max_t):
+    print("start")
     response = co.generate(
         model='command-xlarge-nightly',
         prompt=prompt,
@@ -79,7 +81,7 @@ def check_answer(question, answer):
     {answer}
     Перевір загальне виконання тестів. Якщо половина тестів правильна то відповідай '+' 
     Відповідай тільки '+' або '-' обов'язково малими літерами без крапки. якщо ні то поясни'''
-    check = generate(text, 1)
+    check = generate(text, 100)
     print(check)
     return check
 
@@ -91,40 +93,17 @@ def show_success():
     if messagebox.showinfo("Вітаємо!", "Ви успішно завершили курс!"):
         exit()
 
-def start_course():
-    with open("data/progress.json", "w") as file:
-        json.dump(progress, file)
-    app = QApplication([])
-    ex1 = Widget1()
-    ex1.show()
-    app.exec_()
-
-def continue_course():
-    with open("data/progress.json", "r") as file:
-        global progress 
-        progress= json.load(file)
-    app = QApplication([])
-    ex2 = Widget2()
-    ex2.show()
-    app.exec_()
-    
 
 def read_course():
     with open("data/course.txt", 'r', encoding='utf-8') as file:
         data = file.read()
-    
     pattern = r'\*\*(День \d+: .+?)\*\*\n- (.+?)(?=\n\*\*День \d+: |$)'
-
     matches = re.findall(pattern, data, re.DOTALL)
-
-# Форматування результату
     course = []
     for match in matches:
         day, content = match
         practical = re.findall(r'Практика:\n(.+?)(?=\n\*\*День \d+: |$)', content, re.DOTALL)
-        #print(practical)
         practical_text = practical[0] if practical else "Без практики"
-        #print(practical_text)
         course.append({
             "theme": day[8:],
             "theory": content.strip().split("\nПрактика:")[0],
@@ -132,145 +111,55 @@ def read_course():
         })
     return course
 
-class Widget2(QMainWindow):
-    def __init__(self):
-        super().__init__()
-        self.ui = Ui_MainWindow_Main()
-        self.ui.setupUi(self)
-        self.ui.btn_day_1.clicked.connect(self.btn_1_day)
-        self.ui.btn_day_2.clicked.connect(self.btn_2_day)
-        self.ui.btn_day_3.clicked.connect(self.btn_3_day)
-        self.ui.btn_day_4.clicked.connect(self.btn_4_day)
-        self.ui.btn_day_5.clicked.connect(self.btn_5_day)
-        self.ui.btn_send.clicked.connect(self.btn_send)
-        self.course = read_course()
-        self.btn_1_day()
-        if progress[0] == 1:
-            if progress[1][0] == 1:
-                self.ui.btn_day_1.setStyleSheet(green_style)
-            if progress[2][0] == 1:
-                self.ui.btn_day_2.setStyleSheet(green_style)
-            if progress[3][0] == 1:
-                self.ui.btn_day_3.setStyleSheet(green_style)
-            if progress[4][0] == 1:
-                self.ui.btn_day_4.setStyleSheet(green_style)
-            if progress[5][0] == 1:
-                self.ui.btn_day_5.setStyleSheet(green_style)
-        else:
-            with open("data/progress.json", "w") as file:
-                json.dump([0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], file)
-            print()
+def continue_course():
+    global course
+    course = read_course()
+    with open("data/progress.json", "r") as file:
+        global progress 
+        progress= json.load(file)
+    if check_progress():
+        show_success()
+    with open("data/days.json", "r") as file: 
+        global days_theory
+        days_theory = json.load(file)
+    if not days_theory:
+        print("догенерувати")
 
+def generate_theory(index, theory):
+    text = f'''{theory} 
+    напиши детальну інформацію по кожному пункту
+    не використовуй форматування тексту, пиши все простим текстом'''
+    res = generate(text, 1000)
+    results[index] = res
 
-    def btn_1_day(self):
-        self.ui.lb_num_day.setText("День: 1")
-        self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(self.course[0]['theme'])
-        self.ui.tb_theory.setText(self.course[0]['theory'])
-        self.ui.tb_task.setText(self.course[0]['practical'])
-        if progress[1][0] == 1:
-            self.ui.te_answer.setText(progress[1][1])
+def generation_theory():
+    course = read_course()
+    global results
+    results = [None] * 5
+    threads = []
+    for i in range(5):
+        theo = course[i]['theory']
+        thread = threading.Thread(target=generate_theory, args=(i, theo))
+        threads.append(thread)
+        thread.start()
+    for thread in threads:
+        thread.join()
+    with open("data/days.json", "w") as file:
+        json.dump(results, file)
+    print("Результати є")
 
-    def btn_2_day(self):
-        self.ui.lb_num_day.setText("День: 2")
-        self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(self.course[1]['theme'])
-        self.ui.tb_theory.setText(self.course[1]['theory'])
-        self.ui.tb_task.setText(self.course[1]['practical'])
-        if progress[2][0] == 1:
-            self.ui.te_answer.setText(progress[2][1])
-    
-    def btn_3_day(self):
-        self.ui.lb_num_day.setText("День: 3")
-        self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(self.course[2]['theme'])
-        self.ui.tb_theory.setText(self.course[2]['theory'])
-        self.ui.tb_task.setText(self.course[2]['practical'])
-        if progress[3][0] == 1:
-            self.ui.te_answer.setText(progress[3][1])
-    
-    def btn_4_day(self):
-        self.ui.lb_num_day.setText("День: 4")
-        self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(self.course[3]['theme'])
-        self.ui.tb_theory.setText(self.course[3]['theory'])
-        self.ui.tb_task.setText(self.course[3]['practical'])
-        if progress[4][0] == 1:
-            self.ui.te_answer.setText(progress[4][1])
-    
-    def btn_5_day(self):
-        self.ui.lb_num_day.setText("День: 5")
-        self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(self.course[4]['theme'])
-        self.ui.tb_theory.setText(self.course[4]['theory'])
-        self.ui.tb_task.setText(self.course[4]['practical'])
-        if progress[5][0] == 1:
-            self.ui.te_answer.setText(progress[5][1])
-
-    def btn_send(self):
-        progress[0] = 1
-        if self.ui.lb_num_day.text() == "День: 1":
-            answer = self.ui.te_answer.toPlainText()
-            if answer != "Відповідь:":
-                check = check_answer(self.course[0]['practical'], answer)
-                if check == "+":
-                    self.ui.btn_day_1.setStyleSheet(green_style)
-                    progress[1][0] = 1
-                    progress[1][1] = answer
-                else:
-                    self.ui.btn_day_1.setStyleSheet(red_style)
-        elif self.ui.lb_num_day.text() == "День: 2":
-            answer = self.ui.te_answer.toPlainText()
-            if answer != "Відповідь:":
-                check = check_answer(self.course[1]['practical'], answer)
-                if check == "+":
-                    self.ui.btn_day_2.setStyleSheet(green_style)
-                    progress[2][0] = 1
-                    progress[2][1] = answer
-                else:
-                    self.ui.btn_day_2.setStyleSheet(red_style)
-        elif self.ui.lb_num_day.text() == "День: 3":
-            answer = self.ui.te_answer.toPlainText()
-            if answer != "Відповідь:":
-                check = check_answer(self.course[2]['practical'], answer)
-                if check == "+":
-                    self.ui.btn_day_3.setStyleSheet(green_style)
-                    progress[3][0] = 1
-                    progress[3][1] = answer
-                else:
-                    self.ui.btn_day_3.setStyleSheet(red_style)
-        elif self.ui.lb_num_day.text() == "День: 4":
-            answer = self.ui.te_answer.toPlainText()
-            if answer != "Відповідь:":
-                check = check_answer(self.course[3]['practical'], answer)
-                if check == "+":
-                    self.ui.btn_day_4.setStyleSheet(green_style)
-                    progress[4][0] = 1
-                    progress[4][1] = answer
-                else:
-                    self.ui.btn_day_4.setStyleSheet(red_style)
-        elif self.ui.lb_num_day.text() == "День: 5":
-            answer = self.ui.te_answer.toPlainText()
-            if answer != "Відповідь:":
-                check = check_answer(self.course[4]['practical'], answer)
-                if check == "+":
-                    self.ui.btn_day_5.setStyleSheet(green_style)
-                    progress[5][0] = 1
-                    progress[5][1] = answer
-                else:
-                    self.ui.btn_day_5.setStyleSheet(red_style)
-        with open("data/progress.json", "w") as file:
-            json.dump(progress, file)
-        if check_progress():
-            show_success()
-
-
+'''Класи для інтерфейсу'''
 class Widget1(QMainWindow):
     def   __init__(self):
         super().__init__()
         self.ui = Ui_MainWindow_Start()
         self.ui.setupUi(self)
         self.ui.btn_start.clicked.connect(self.press_btn_start)
+        if os.path.exists("data/course.txt"):
+            self.ui.btn_continue.show()
+            self.ui.btn_continue.clicked.connect(self.open_next_window)
+        else:
+            self.ui.btn_continue.hide()
         self.ui.lb_in_name.hide()
         self.ui.lb_in_age.hide()
         self.ui.lb_in_course.hide()
@@ -283,6 +172,7 @@ class Widget1(QMainWindow):
 
     def press_btn_start(self):
         if self.ui.btn_start.text() == "Розпочати":
+            self.ui.btn_continue.hide()
             self.ui.btn_start.setText("Згенерувати")
             self.ui.lb_text1.hide()
             self.ui.lb_text2.hide()
@@ -307,6 +197,10 @@ class Widget1(QMainWindow):
                 self.ui.le_course.hide()
                 self.ui.lb_text2.show()
                 self.ui.lb_text2.setText("")
+                with open("data/progress.json", "w") as file:
+                    json.dump([0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], file)
+                with open("data/days.json", "w") as file:
+                    json.dump([], file)
                 self.start_loading()
                 threading.Thread(target=self.run_generation, args=(name, age, course)).start()
             else:
@@ -314,10 +208,12 @@ class Widget1(QMainWindow):
         else:
             self.close()
             self.open_next_window()
+    
                 
     def run_generation(self, name, age, course):
         # Зняти коментарі
         generation(name, age, course)
+        generation_theory()
         self.stop_loading() 
 
     def stop_loading(self):
@@ -335,18 +231,159 @@ class Widget1(QMainWindow):
         self.ui.lb_text2.setText(self.loading_text + "." * self.dots)
     
     def open_next_window(self):
+        self.close()
+        continue_course()
         self.next_window = Widget2()
         self.next_window.show()
-# основна програма
-if os.path.exists("data/course.txt"):
-    if messagebox.askquestion("", "У вас є згенерований курс, бажаєте продовжити?") == "yes":
-        with open("data/progress.json", "r") as file: 
-            progress= json.load(file)
+        
+
+
+class Widget2(QMainWindow):
+    def __init__(self):
+        super().__init__()
+        self.ui = Ui_MainWindow_Main()
+        self.ui.setupUi(self)
+        self.ui.btn_day_1.clicked.connect(self.btn_1_day)
+        self.ui.btn_day_2.clicked.connect(self.btn_2_day)
+        self.ui.btn_day_3.clicked.connect(self.btn_3_day)
+        self.ui.btn_day_4.clicked.connect(self.btn_4_day)
+        self.ui.btn_day_5.clicked.connect(self.btn_5_day)
+        self.ui.btn_send.clicked.connect(self.btn_send)
+        self.btn_1_day()
+        if progress[0] == 1:
+            if progress[1][0] == 1:
+                self.ui.btn_day_1.setStyleSheet(green_style)
+            if progress[2][0] == 1:
+                self.ui.btn_day_2.setStyleSheet(green_style)
+            if progress[3][0] == 1:
+                self.ui.btn_day_3.setStyleSheet(green_style)
+            if progress[4][0] == 1:
+                self.ui.btn_day_4.setStyleSheet(green_style)
+            if progress[5][0] == 1:
+                self.ui.btn_day_5.setStyleSheet(green_style)
+
+
+    def btn_1_day(self):
+        self.ui.lb_num_day.setText("День: 1")
+        self.ui.te_answer.setText("Відповідь:")
+        self.ui.lb_text1.setText(course[0]['theme'])
+        self.ui.tb_task.setText(course[0]['practical'])
+        if days_theory[0]:
+            self.ui.tb_theory.setText(days_theory[0])
+        else:
+            self.ui.tb_theory.setText(course[0]['theory'])
+            
+        if progress[1][0] == 1:
+            self.ui.te_answer.setText(progress[1][1])
+
+    def btn_2_day(self):
+        self.ui.lb_num_day.setText("День: 2")
+        self.ui.te_answer.setText("Відповідь:")
+        self.ui.lb_text1.setText(course[1]['theme'])
+        self.ui.tb_task.setText(course[1]['practical'])
+        if days_theory[1]:
+            self.ui.tb_theory.setText(days_theory[1])
+        else:
+            self.ui.tb_theory.setText(course[1]['theory'])
+        if progress[2][0] == 1:
+            self.ui.te_answer.setText(progress[2][1])
+    
+    def btn_3_day(self):
+        self.ui.lb_num_day.setText("День: 3")
+        self.ui.te_answer.setText("Відповідь:")
+        self.ui.lb_text1.setText(course[2]['theme'])
+        self.ui.tb_task.setText(course[2]['practical'])
+        if days_theory[2]:
+            self.ui.tb_theory.setText(days_theory[2])
+        else:
+            self.ui.tb_theory.setText(course[2]['theory'])
+        if progress[3][0] == 1:
+            self.ui.te_answer.setText(progress[3][1])
+    
+    def btn_4_day(self):
+        self.ui.lb_num_day.setText("День: 4")
+        self.ui.te_answer.setText("Відповідь:")
+        self.ui.lb_text1.setText(course[3]['theme'])
+        self.ui.tb_task.setText(course[3]['practical'])
+        if days_theory[3]:
+            self.ui.tb_theory.setText(days_theory[3])
+        else:
+            self.ui.tb_theory.setText(course[3]['theory'])
+        if progress[4][0] == 1:
+            self.ui.te_answer.setText(progress[4][1])
+    
+    def btn_5_day(self):
+        self.ui.lb_num_day.setText("День: 5")
+        self.ui.te_answer.setText("Відповідь:")
+        self.ui.lb_text1.setText(course[4]['theme'])
+        self.ui.tb_task.setText(course[4]['practical'])
+        if days_theory[4]:
+            self.ui.tb_theory.setText(days_theory[4])
+        else:
+            self.ui.tb_theory.setText(course[4]['theory'])
+        if progress[5][0] == 1:
+            self.ui.te_answer.setText(progress[5][1])
+
+    def btn_send(self):
+        progress[0] = 1
+        if self.ui.lb_num_day.text() == "День: 1":
+            answer = self.ui.te_answer.toPlainText()
+            if answer != "Відповідь:":
+                check = check_answer(course[0]['practical'], answer)
+                if "+" in check:
+                    self.ui.btn_day_1.setStyleSheet(green_style)
+                    progress[1][0] = 1
+                    progress[1][1] = answer
+                else:
+                    self.ui.btn_day_1.setStyleSheet(red_style)
+        elif self.ui.lb_num_day.text() == "День: 2":
+            answer = self.ui.te_answer.toPlainText()
+            if answer != "Відповідь:":
+                check = check_answer(course[1]['practical'], answer)
+                if "+" in check:
+                    self.ui.btn_day_2.setStyleSheet(green_style)
+                    progress[2][0] = 1
+                    progress[2][1] = answer
+                else:
+                    self.ui.btn_day_2.setStyleSheet(red_style)
+        elif self.ui.lb_num_day.text() == "День: 3":
+            answer = self.ui.te_answer.toPlainText()
+            if answer != "Відповідь:":
+                check = check_answer(course[2]['practical'], answer)
+                if "+" in check:
+                    self.ui.btn_day_3.setStyleSheet(green_style)
+                    progress[3][0] = 1
+                    progress[3][1] = answer
+                else:
+                    self.ui.btn_day_3.setStyleSheet(red_style)
+        elif self.ui.lb_num_day.text() == "День: 4":
+            answer = self.ui.te_answer.toPlainText()
+            if answer != "Відповідь:":
+                check = check_answer(course[3]['practical'], answer)
+                if "+" in check:
+                    self.ui.btn_day_4.setStyleSheet(green_style)
+                    progress[4][0] = 1
+                    progress[4][1] = answer
+                else:
+                    self.ui.btn_day_4.setStyleSheet(red_style)
+        elif self.ui.lb_num_day.text() == "День: 5":
+            answer = self.ui.te_answer.toPlainText()
+            if answer != "Відповідь:":
+                check = check_answer(course[4]['practical'], answer)
+                if "+" in check:
+                    self.ui.btn_day_5.setStyleSheet(green_style)
+                    progress[5][0] = 1
+                    progress[5][1] = answer
+                else:
+                    self.ui.btn_day_5.setStyleSheet(red_style)
+        with open("data/progress.json", "w") as file:
+            json.dump(progress, file)
         if check_progress():
             show_success()
-        else:
-            continue_course()
-    else:
-        start_course()
-else:
-    start_course()
+
+
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    ex1 = Widget1()
+    ex1.show()
+    sys.exit(app.exec_())

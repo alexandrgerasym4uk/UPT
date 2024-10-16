@@ -23,6 +23,15 @@ class Ui_MainWindow_Start(object):
         self.btn_start.setObjectName("btn_start")
         self.btn_start.setFixedSize(161, 61)
 
+        self.btn_continue = QtWidgets.QPushButton("Продовжити",self.centralwidget)
+        font = QtGui.QFont()
+        font.setPointSize(15)
+        self.btn_continue.setFont(font)
+        self.btn_continue.setCursor(QtGui.QCursor(QtCore.Qt.PointingHandCursor))
+        self.btn_continue.setCheckable(False)
+        self.btn_continue.setObjectName("btn_continue")
+        self.btn_continue.setFixedSize(161, 61)
+
 
         self.lb_name = QtWidgets.QLabel("Universal Personal Tutor",self.centralwidget)
         font = QtGui.QFont()
@@ -138,7 +147,13 @@ class Ui_MainWindow_Start(object):
         main_layout.addWidget(self.lb_text3, alignment=QtCore.Qt.AlignCenter)
         main_layout.addLayout(course_layout)
 
-        main_layout.addWidget(self.btn_start, alignment=QtCore.Qt.AlignCenter)
+        buttons_layout = QHBoxLayout()
+        buttons_layout.addStretch(5)
+        buttons_layout.addWidget(self.btn_start, alignment=QtCore.Qt.AlignCenter)
+        buttons_layout.addWidget(self.btn_continue, alignment=QtCore.Qt.AlignCenter)
+        buttons_layout.addStretch(5)
+        
+        main_layout.addLayout(buttons_layout)
 
 
         MainWindow.setStatusBar(self.statusbar)
