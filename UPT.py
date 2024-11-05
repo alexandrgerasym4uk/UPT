@@ -1,13 +1,12 @@
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QTimer
-import os, re, cohere, threading, json, sys
+import os, re, cohere, threading, json, sys, webbrowser
 from tkinter import messagebox
 from ui_adaptive1 import Ui_MainWindow_Start
 from ui_adaptive2 import Ui_MainWindow_Main
 
 '''Необхідні дані для роботи'''
-api_key = 'Zf5HgFaPWLIoFPvzVi0hDhrCSOSjWRzAawiEDiV5'
-co = cohere.Client(api_key)
+url = "https://dashboard.cohere.com/api-keys"
 green_style = '''
     QPushButton {
         background-color: green;      
@@ -26,7 +25,6 @@ red_style = '''
     }
 '''
 
-#progress = [0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]]
 
 '''Функції програми'''
 def generate(prompt, max_t):
@@ -116,7 +114,7 @@ def continue_course():
     course = read_course()
     with open("data/progress.json", "r") as file:
         global progress 
-        progress= json.load(file)
+        progress = json.load(file)
     if check_progress():
         show_success()
     with open("data/days.json", "r") as file: 
@@ -154,6 +152,49 @@ class Widget1(QMainWindow):
         super().__init__()
         self.ui = Ui_MainWindow_Start()
         self.ui.setupUi(self)
+        if not os.path.exists("data/key.json"):
+            os.makedirs("data")
+            self.ui.lb_text1.hide()
+            self.ui.lb_text2.hide()
+            self.ui.lb_text3.hide()
+            self.ui.btn_continue.hide()
+            self.ui.btn_start.hide()
+            self.ui.lb_in_name.hide()
+            self.ui.le_name.hide()
+            self.ui.lb_in_age.hide()
+            self.ui.le_age.hide()
+            self.ui.lb_in_course.hide()
+            self.ui.le_course.hide()
+
+            self.ui.lb_text_key.show()
+            self.ui.btn_key_get.show()
+            self.ui.btn_key_get.clicked.connect(self.press_btn_get_key)
+            self.ui.lb_in_key.show()
+            self.ui.le_key.show()
+            self.ui.btn_key.show()
+            self.ui.btn_key.clicked.connect(self.press_btn_key)
+        else:
+            self.start_win()
+            with open("data/key.json", "r") as key:
+                global api_key
+                api_key = json.load(key)
+                global co
+                co = cohere.Client(api_key)
+        self.timer = QTimer()
+        self.loading_text = "               Зачекайте, Ваш курс створюється"
+        self.dots = 0
+
+    def start_win(self):
+        self.ui.lb_text_key.hide()
+        self.ui.btn_key_get.hide()
+        self.ui.lb_in_key.hide()
+        self.ui.le_key.hide()
+        self.ui.btn_key.hide()
+
+        self.ui.lb_text1.show()
+        self.ui.lb_text2.show()
+        self.ui.lb_text3.show()
+        self.ui.btn_start.show()
         self.ui.btn_start.clicked.connect(self.press_btn_start)
         if os.path.exists("data/course.txt"):
             self.ui.btn_continue.show()
@@ -166,9 +207,20 @@ class Widget1(QMainWindow):
         self.ui.le_name.hide()
         self.ui.le_age.hide()
         self.ui.le_course.hide()
-        self.timer = QTimer()
-        self.loading_text = "               Зачекайте, Ваш курс створюється"
-        self.dots = 0
+
+    def press_btn_get_key(self):
+        webbrowser.open(url)
+
+    def press_btn_key(self):
+        api_key = self.ui.le_key.text()
+        if api_key:
+            with open("data/key.json", "w") as key:
+                json.dump(api_key, key)
+            global co
+            co = cohere.Client(api_key)
+            self.start_win()
+        else:
+            messagebox.showwarning("!", "Будь ласка, введіть дані.")
 
     def press_btn_start(self):
         if self.ui.btn_start.text() == "Розпочати":
