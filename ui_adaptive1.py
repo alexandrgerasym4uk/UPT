@@ -58,7 +58,7 @@ class Ui_MainWindow_Start(object):
         font.setPointSize(15)
         self.lb_text_key.setFont(font)
         self.lb_text_key.setObjectName("lb_text_key")
-        self.lb_text_key.setFixedSize(526, 30)
+        self.lb_text_key.setFixedSize(600, 30)
 
 
         
