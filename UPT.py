@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QTimer
-import os, re, cohere, threading, json, sys, webbrowser
+import os, re, cohere, threading, json, sys, webbrowser, requests
 from tkinter import messagebox
 from ui_adaptive1 import Ui_MainWindow_Start
 from ui_adaptive2 import Ui_MainWindow_Main
@@ -27,6 +27,16 @@ red_style = '''
 
 
 '''Функції програми'''
+def check_internet_connection():
+    try:
+        response = requests.get("http://www.google.com", timeout=5)
+        if response.status_code == 200:
+            return True
+        else:
+            return False
+    except requests.ConnectionError:
+        return False
+
 def generate(prompt, max_t):
     print("start")
     response = co.generate(
@@ -435,7 +445,10 @@ class Widget2(QMainWindow):
 
 
 if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    ex1 = Widget1()
-    ex1.show()
-    sys.exit(app.exec_())
+    if  check_internet_connection():
+        app = QApplication(sys.argv)
+        ex1 = Widget1()
+        ex1.show()
+        sys.exit(app.exec_())
+    else:
+        messagebox.showwarning("Відсутнє з'єднання", "Будь ласка, перевірте підключення до Інтрнету.")
