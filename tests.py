@@ -2,7 +2,7 @@ import unittest
 from unittest.mock import patch, mock_open
 import json
 import requests
-from UPT import check_internet_connection, check_progress, generate, read_course
+from UPT import check_internet_connection, generate
 
 
 class TestCheckInternetConnection(unittest.TestCase):
