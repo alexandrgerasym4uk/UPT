@@ -5,28 +5,30 @@ from tkinter import messagebox
 from ui_adaptive1 import Ui_MainWindow_Start
 from ui_adaptive2 import Ui_MainWindow_Main
 
-'''Необхідні дані для роботи'''
+"""Необхідні дані для роботи"""
 url = "https://dashboard.cohere.com/api-keys"
-green_style = '''
+green_style = """
     QPushButton {
         background-color: green;      
         color: black;                 
         border-radius: 5px;           
         border: 1px solid lightgray;  
     }
-'''
+"""
 
-red_style = '''
+red_style = """
     QPushButton {
         background-color: red;      
         color: black;                 
         border-radius: 5px;           
         border: 1px solid lightgray;  
     }
-'''
+"""
 
 
-'''Функції програми'''
+"""Функції програми"""
+
+
 def check_internet_connection():
     try:
         response = requests.get("http://www.google.com", timeout=5)
@@ -37,18 +39,24 @@ def check_internet_connection():
     except requests.ConnectionError:
         return False
 
+
 def generate(prompt, max_t):
     print("start")
+    with open("data/key.json", "r") as key:
+        global api_key
+        api_key = json.load(key)
+    co = cohere.Client(api_key)
     response = co.generate(
-        model='command-xlarge-nightly',
+        model="command-xlarge-nightly",
         prompt=prompt,
         max_tokens=max_t,
-        temperature=0.75
+        temperature=0.75,
     )
     return response.generations[0].text
 
+
 def generation(name, age, course):
-    text = f'''Привіт, мене звати {name}, мені, {age} і я хочу вчити {course}. 
+    text = f"""Привіт, мене звати {name}, мені, {age} і я хочу вчити {course}. 
     Напиши мені план курсу для вивчення {course} на 5 днів. 
     Практика повинна ТІЛЬКИ бути у вигляді тестів з відповідями а, б, в
     Пиши по зразку:
@@ -78,24 +86,27 @@ def generation(name, age, course):
     Практика:
     - <тести>
     
-    Пиши строго по цьому зразку, бо мені треба використовувати твою відповідь і важливий кожен символ'''
+    Пиши строго по цьому зразку, бо мені треба використовувати твою відповідь і важливий кожен символ"""
     result = generate(text, 3000)
-    with open("data/course.txt", 'w', encoding='utf-8') as file:
+    with open("data/course.txt", "w", encoding="utf-8") as file:
         file.write(result)
 
+
 def check_answer(question, answer):
-    text = f'''
+    text = f"""
     {question}, 
     {answer}
     Перевір загальне виконання тестів. Якщо половина тестів правильна то відповідай '+' 
-    Відповідай тільки '+' або '-' обов'язково малими літерами без крапки. якщо ні то поясни'''
+    Відповідай тільки '+' або '-' обов'язково малими літерами без крапки. якщо ні то поясни"""
     check = generate(text, 100)
     print(check)
     return check
 
+
 def check_progress():
     if all(progress[i][0] == 1 for i in range(1, 6)):
         return 1
+
 
 def show_success():
     if messagebox.showinfo("Вітаємо!", "Ви успішно завершили курс!"):
@@ -103,42 +114,49 @@ def show_success():
 
 
 def read_course():
-    with open("data/course.txt", 'r', encoding='utf-8') as file:
+    with open("data/course.txt", "r", encoding="utf-8") as file:
         data = file.read()
-    pattern = r'\*\*(День \d+: .+?)\*\*\n- (.+?)(?=\n\*\*День \d+: |$)'
+    pattern = r"\*\*(День \d+: .+?)\*\*\n- (.+?)(?=\n\*\*День \d+: |$)"
     matches = re.findall(pattern, data, re.DOTALL)
     course = []
     for match in matches:
         day, content = match
-        practical = re.findall(r'Практика:\n(.+?)(?=\n\*\*День \d+: |$)', content, re.DOTALL)
+        practical = re.findall(
+            r"Практика:\n(.+?)(?=\n\*\*День \d+: |$)", content, re.DOTALL
+        )
         practical_text = practical[0] if practical else "Без практики"
-        course.append({
-            "theme": day[8:],
-            "theory": content.strip().split("\nПрактика:")[0],
-            "practical": practical_text.strip()
-        })
+        course.append(
+            {
+                "theme": day[8:],
+                "theory": content.strip().split("\nПрактика:")[0],
+                "practical": practical_text.strip(),
+            }
+        )
     return course
+
 
 def continue_course():
     global course
     course = read_course()
     with open("data/progress.json", "r") as file:
-        global progress 
+        global progress
         progress = json.load(file)
     if check_progress():
         show_success()
-    with open("data/days.json", "r") as file: 
+    with open("data/days.json", "r") as file:
         global days_theory
         days_theory = json.load(file)
     if not days_theory:
         print("догенерувати")
 
+
 def generate_theory(index, theory):
-    text = f'''{theory} 
+    text = f"""{theory} 
     напиши детальну інформацію по кожному пункту
-    не використовуй форматування тексту, пиши все простим текстом'''
+    не використовуй форматування тексту, пиши все простим текстом"""
     res = generate(text, 1000)
     results[index] = res
+
 
 def generation_theory():
     course = read_course()
@@ -146,7 +164,7 @@ def generation_theory():
     results = [None] * 5
     threads = []
     for i in range(5):
-        theo = course[i]['theory']
+        theo = course[i]["theory"]
         thread = threading.Thread(target=generate_theory, args=(i, theo))
         threads.append(thread)
         thread.start()
@@ -156,9 +174,12 @@ def generation_theory():
         json.dump(results, file)
     print("Результати є")
 
-'''Класи для інтерфейсу'''
+
+"""Класи для інтерфейсу"""
+
+
 class Widget1(QMainWindow):
-    def   __init__(self):
+    def __init__(self):
         super().__init__()
         self.ui = Ui_MainWindow_Start()
         self.ui.setupUi(self)
@@ -246,7 +267,11 @@ class Widget1(QMainWindow):
             self.ui.le_age.show()
             self.ui.le_course.show()
         elif self.ui.btn_start.text() == "Згенерувати":
-            if self.ui.le_name.text() and self.ui.le_age.text() and self.ui.le_course.text():
+            if (
+                self.ui.le_name.text()
+                and self.ui.le_age.text()
+                and self.ui.le_course.text()
+            ):
                 self.ui.btn_start.hide()
                 name = self.ui.le_name.text()
                 age = self.ui.le_age.text()
@@ -264,45 +289,46 @@ class Widget1(QMainWindow):
                 with open("data/days.json", "w") as file:
                     json.dump([], file)
                 self.start_loading()
-                threading.Thread(target=self.run_generation, args=(name, age, course)).start()
+                threading.Thread(
+                    target=self.run_generation, args=(name, age, course)
+                ).start()
             else:
                 messagebox.showwarning("!", "Будь ласка, введіть дані.")
         else:
             self.close()
             self.open_next_window()
-    
-                
+
     def run_generation(self, name, age, course):
         # Зняти коментарі
         generation(name, age, course)
         generation_theory()
-        self.stop_loading() 
+        self.stop_loading()
 
     def stop_loading(self):
-        self.timer.stop() 
+        self.timer.stop()
         self.ui.lb_text2.setText("                    Курс успішно згенеровано!")
         self.ui.btn_start.setText("Вчитися!")
         self.ui.btn_start.show()
 
     def start_loading(self):
         self.timer.timeout.connect(self.update_loading_text)
-        self.timer.start(500)  
+        self.timer.start(500)
 
     def update_loading_text(self):
-        self.dots = (self.dots + 1) % 4  
+        self.dots = (self.dots + 1) % 4
         self.ui.lb_text2.setText(self.loading_text + "." * self.dots)
-    
+
     def open_next_window(self):
         self.close()
         continue_course()
         self.next_window = Widget2()
         self.next_window.show()
-        
 
 
 class Widget2(QMainWindow):
     def __init__(self):
         super().__init__()
+        print(course)
         self.ui = Ui_MainWindow_Main()
         self.ui.setupUi(self)
         self.ui.btn_day_1.clicked.connect(self.btn_1_day)
@@ -324,65 +350,64 @@ class Widget2(QMainWindow):
             if progress[5][0] == 1:
                 self.ui.btn_day_5.setStyleSheet(green_style)
 
-
     def btn_1_day(self):
         self.ui.lb_num_day.setText("День: 1")
         self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(course[0]['theme'])
-        self.ui.tb_task.setText(course[0]['practical'])
+        self.ui.lb_text1.setText(course[0]["theme"])
+        self.ui.tb_task.setText(course[0]["practical"])
         if days_theory[0]:
             self.ui.tb_theory.setText(days_theory[0])
         else:
-            self.ui.tb_theory.setText(course[0]['theory'])
-            
+            self.ui.tb_theory.setText(course[0]["theory"])
+
         if progress[1][0] == 1:
             self.ui.te_answer.setText(progress[1][1])
 
     def btn_2_day(self):
         self.ui.lb_num_day.setText("День: 2")
         self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(course[1]['theme'])
-        self.ui.tb_task.setText(course[1]['practical'])
+        self.ui.lb_text1.setText(course[1]["theme"])
+        self.ui.tb_task.setText(course[1]["practical"])
         if days_theory[1]:
             self.ui.tb_theory.setText(days_theory[1])
         else:
-            self.ui.tb_theory.setText(course[1]['theory'])
+            self.ui.tb_theory.setText(course[1]["theory"])
         if progress[2][0] == 1:
             self.ui.te_answer.setText(progress[2][1])
-    
+
     def btn_3_day(self):
         self.ui.lb_num_day.setText("День: 3")
         self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(course[2]['theme'])
-        self.ui.tb_task.setText(course[2]['practical'])
+        self.ui.lb_text1.setText(course[2]["theme"])
+        self.ui.tb_task.setText(course[2]["practical"])
         if days_theory[2]:
             self.ui.tb_theory.setText(days_theory[2])
         else:
-            self.ui.tb_theory.setText(course[2]['theory'])
+            self.ui.tb_theory.setText(course[2]["theory"])
         if progress[3][0] == 1:
             self.ui.te_answer.setText(progress[3][1])
-    
+
     def btn_4_day(self):
         self.ui.lb_num_day.setText("День: 4")
         self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(course[3]['theme'])
-        self.ui.tb_task.setText(course[3]['practical'])
+        self.ui.lb_text1.setText(course[3]["theme"])
+        self.ui.tb_task.setText(course[3]["practical"])
         if days_theory[3]:
             self.ui.tb_theory.setText(days_theory[3])
         else:
-            self.ui.tb_theory.setText(course[3]['theory'])
+            self.ui.tb_theory.setText(course[3]["theory"])
         if progress[4][0] == 1:
             self.ui.te_answer.setText(progress[4][1])
-    
+
     def btn_5_day(self):
         self.ui.lb_num_day.setText("День: 5")
         self.ui.te_answer.setText("Відповідь:")
-        self.ui.lb_text1.setText(course[4]['theme'])
-        self.ui.tb_task.setText(course[4]['practical'])
+        self.ui.lb_text1.setText(course[4]["theme"])
+        self.ui.tb_task.setText(course[4]["practical"])
         if days_theory[4]:
             self.ui.tb_theory.setText(days_theory[4])
         else:
-            self.ui.tb_theory.setText(course[4]['theory'])
+            self.ui.tb_theory.setText(course[4]["theory"])
         if progress[5][0] == 1:
             self.ui.te_answer.setText(progress[5][1])
 
@@ -391,7 +416,7 @@ class Widget2(QMainWindow):
         if self.ui.lb_num_day.text() == "День: 1":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[0]['practical'], answer)
+                check = check_answer(course[0]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_1.setStyleSheet(green_style)
                     progress[1][0] = 1
@@ -401,7 +426,7 @@ class Widget2(QMainWindow):
         elif self.ui.lb_num_day.text() == "День: 2":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[1]['practical'], answer)
+                check = check_answer(course[1]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_2.setStyleSheet(green_style)
                     progress[2][0] = 1
@@ -411,7 +436,7 @@ class Widget2(QMainWindow):
         elif self.ui.lb_num_day.text() == "День: 3":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[2]['practical'], answer)
+                check = check_answer(course[2]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_3.setStyleSheet(green_style)
                     progress[3][0] = 1
@@ -421,7 +446,7 @@ class Widget2(QMainWindow):
         elif self.ui.lb_num_day.text() == "День: 4":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[3]['practical'], answer)
+                check = check_answer(course[3]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_4.setStyleSheet(green_style)
                     progress[4][0] = 1
@@ -431,7 +456,7 @@ class Widget2(QMainWindow):
         elif self.ui.lb_num_day.text() == "День: 5":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[4]['practical'], answer)
+                check = check_answer(course[4]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_5.setStyleSheet(green_style)
                     progress[5][0] = 1
@@ -445,10 +470,12 @@ class Widget2(QMainWindow):
 
 
 if __name__ == "__main__":
-    if  check_internet_connection():
+    if check_internet_connection():
         app = QApplication(sys.argv)
         ex1 = Widget1()
         ex1.show()
         sys.exit(app.exec_())
     else:
-        messagebox.showwarning("Відсутнє з'єднання", "Будь ласка, перевірте підключення до Інтрнету.")
+        messagebox.showwarning(
+            "Відсутнє з'єднання", "Будь ласка, перевірте підключення до Інтрнету."
+        )
