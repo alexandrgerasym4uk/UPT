@@ -4,6 +4,7 @@ import os, re, cohere, threading, json, sys, webbrowser, requests
 from tkinter import messagebox
 from ui_adaptive1 import Ui_MainWindow_Start
 from ui_adaptive2 import Ui_MainWindow_Main
+from database import initialize_database, save_data, get_data
 
 """Необхідні дані для роботи"""
 url = "https://dashboard.cohere.com/api-keys"
@@ -42,9 +43,8 @@ def check_internet_connection():
 
 def generate(prompt, max_t):
     print("start")
-    with open("data/key.json", "r") as key:
-        global api_key
-        api_key = json.load(key)
+    global api_key
+    api_key = get_data(1)
     co = cohere.Client(api_key)
     response = co.generate(
         model="command-xlarge-nightly",
@@ -88,8 +88,7 @@ def generation(name, age, course):
     
     Пиши строго по цьому зразку, бо мені треба використовувати твою відповідь і важливий кожен символ"""
     result = generate(text, 3000)
-    with open("data/course.txt", "w", encoding="utf-8") as file:
-        file.write(result)
+    save_data(3, result)
 
 
 def check_answer(question, answer):
@@ -103,7 +102,7 @@ def check_answer(question, answer):
     return check
 
 
-def check_progress():
+def check_progress(progress):
     if all(progress[i][0] == 1 for i in range(1, 6)):
         return 1
 
@@ -114,8 +113,7 @@ def show_success():
 
 
 def read_course():
-    with open("data/course.txt", "r", encoding="utf-8") as file:
-        data = file.read()
+    data = get_data(3)
     pattern = r"\*\*(День \d+: .+?)\*\*\n- (.+?)(?=\n\*\*День \d+: |$)"
     matches = re.findall(pattern, data, re.DOTALL)
     course = []
@@ -138,14 +136,12 @@ def read_course():
 def continue_course():
     global course
     course = read_course()
-    with open("data/progress.json", "r") as file:
-        global progress
-        progress = json.load(file)
-    if check_progress():
+    global progress
+    progress = get_data(2)
+    if check_progress(progress):
         show_success()
-    with open("data/days.json", "r") as file:
-        global days_theory
-        days_theory = json.load(file)
+    global days_theory
+    days_theory = get_data(4)
     if not days_theory:
         print("догенерувати")
 
@@ -170,8 +166,7 @@ def generation_theory():
         thread.start()
     for thread in threads:
         thread.join()
-    with open("data/days.json", "w") as file:
-        json.dump(results, file)
+    save_data(4, results)
     print("Результати є")
 
 
@@ -183,8 +178,7 @@ class Widget1(QMainWindow):
         super().__init__()
         self.ui = Ui_MainWindow_Start()
         self.ui.setupUi(self)
-        if not os.path.exists("data/key.json"):
-            os.makedirs("data")
+        if not os.path.exists("data.db"):
             self.ui.lb_text1.hide()
             self.ui.lb_text2.hide()
             self.ui.lb_text3.hide()
@@ -206,11 +200,10 @@ class Widget1(QMainWindow):
             self.ui.btn_key.clicked.connect(self.press_btn_key)
         else:
             self.start_win()
-            with open("data/key.json", "r") as key:
-                global api_key
-                api_key = json.load(key)
-                global co
-                co = cohere.Client(api_key)
+            global api_key
+            api_key = get_data(1)
+            global co
+            co = cohere.Client(api_key)
         self.timer = QTimer()
         self.loading_text = "               Зачекайте, Ваш курс створюється"
         self.dots = 0
@@ -243,10 +236,10 @@ class Widget1(QMainWindow):
         webbrowser.open(url)
 
     def press_btn_key(self):
+        initialize_database()
         api_key = self.ui.le_key.text()
         if api_key:
-            with open("data/key.json", "w") as key:
-                json.dump(api_key, key)
+            save_data(1, api_key)
             global co
             co = cohere.Client(api_key)
             self.start_win()
@@ -284,10 +277,7 @@ class Widget1(QMainWindow):
                 self.ui.le_course.hide()
                 self.ui.lb_text2.show()
                 self.ui.lb_text2.setText("")
-                with open("data/progress.json", "w") as file:
-                    json.dump([0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]], file)
-                with open("data/days.json", "w") as file:
-                    json.dump([], file)
+                save_data(2, [0, [0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]])
                 self.start_loading()
                 threading.Thread(
                     target=self.run_generation, args=(name, age, course)
@@ -328,7 +318,6 @@ class Widget1(QMainWindow):
 class Widget2(QMainWindow):
     def __init__(self):
         super().__init__()
-        print(course)
         self.ui = Ui_MainWindow_Main()
         self.ui.setupUi(self)
         self.ui.btn_day_1.clicked.connect(self.btn_1_day)
@@ -463,9 +452,8 @@ class Widget2(QMainWindow):
                     progress[5][1] = answer
                 else:
                     self.ui.btn_day_5.setStyleSheet(red_style)
-        with open("data/progress.json", "w") as file:
-            json.dump(progress, file)
-        if check_progress():
+        save_data(2, progress)
+        if check_progress(progress):
             show_success()
 
 
