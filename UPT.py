@@ -220,7 +220,7 @@ class Widget1(QMainWindow):
         self.ui.lb_text3.show()
         self.ui.btn_start.show()
         self.ui.btn_start.clicked.connect(self.press_btn_start)
-        if os.path.exists("data/course.txt"):
+        if get_data(3):
             self.ui.btn_continue.show()
             self.ui.btn_continue.clicked.connect(self.open_next_window)
         else:
