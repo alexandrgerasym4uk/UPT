@@ -1,10 +1,11 @@
 from PyQt5.QtWidgets import QApplication, QMainWindow
 from PyQt5.QtCore import QTimer
-import os, re, cohere, threading, json, sys, webbrowser, requests
+import os, re, cohere, threading, sys, webbrowser, requests
 from tkinter import messagebox
 from ui_adaptive1 import Ui_MainWindow_Start
 from ui_adaptive2 import Ui_MainWindow_Main
 from database import initialize_database, save_data, get_data
+from AI.generation import generation, check_answer, generation_theory
 
 """Необхідні дані для роботи"""
 url = "https://dashboard.cohere.com/api-keys"
@@ -40,66 +41,6 @@ def check_internet_connection():
     except requests.ConnectionError:
         return False
 
-
-def generate(prompt, max_t):
-    print("start")
-    global api_key
-    api_key = get_data(1)
-    co = cohere.Client(api_key)
-    response = co.generate(
-        model="command-xlarge-nightly",
-        prompt=prompt,
-        max_tokens=max_t,
-        temperature=0.75,
-    )
-    return response.generations[0].text
-
-
-def generation(name, age, course):
-    text = f"""Привіт, мене звати {name}, мені, {age} і я хочу вчити {course}. 
-    Напиши мені план курсу для вивчення {course} на 5 днів. 
-    Практика повинна ТІЛЬКИ бути у вигляді тестів з відповідями а, б, в
-    Пиши по зразку:
-
-    **День 1: <Тема дня>**
-    - <план для вивчення теми>
-    Практика:
-    - <тести>
-
-    **День 2: <Тема дня>**
-    - <план для вивчення теми>
-    Практика:
-    - <тести>
-
-    **День 3: <Тема дня>**
-    - <план для вивчення теми>
-    Практика:
-    - <тести>
-
-    **День 4: <Тема дня>**
-    - <план для вивчення теми>
-    Практика:
-    - <тести>
-
-    **День 5: <Тема дня>**
-    - <план для вивчення теми>
-    Практика:
-    - <тести>
-    
-    Пиши строго по цьому зразку, бо мені треба використовувати твою відповідь і важливий кожен символ"""
-    result = generate(text, 3000)
-    save_data(3, result)
-
-
-def check_answer(question, answer):
-    text = f"""
-    {question}, 
-    {answer}
-    Перевір загальне виконання тестів. Якщо половина тестів правильна то відповідай '+' 
-    Відповідай тільки '+' або '-' обов'язково малими літерами без крапки. якщо ні то поясни"""
-    check = generate(text, 100)
-    print(check)
-    return check
 
 
 def check_progress(progress):
@@ -144,30 +85,6 @@ def continue_course():
     days_theory = get_data(4)
     if not days_theory:
         print("догенерувати")
-
-
-def generate_theory(index, theory):
-    text = f"""{theory} 
-    напиши детальну інформацію по кожному пункту
-    не використовуй форматування тексту, пиши все простим текстом"""
-    res = generate(text, 1000)
-    results[index] = res
-
-
-def generation_theory():
-    course = read_course()
-    global results
-    results = [None] * 5
-    threads = []
-    for i in range(5):
-        theo = course[i]["theory"]
-        thread = threading.Thread(target=generate_theory, args=(i, theo))
-        threads.append(thread)
-        thread.start()
-    for thread in threads:
-        thread.join()
-    save_data(4, results)
-    print("Результати є")
 
 
 """Класи для інтерфейсу"""
@@ -290,8 +207,12 @@ class Widget1(QMainWindow):
 
     def run_generation(self, name, age, course):
         # Зняти коментарі
-        generation(name, age, course)
-        generation_theory()
+        result = generation(co, name, age, course)
+        save_data(3, result)
+        course_days = read_course()
+        results = generation_theory(co, course_days)
+        save_data(4, results)
+        print("Результати є")
         self.stop_loading()
 
     def stop_loading(self):
@@ -405,7 +326,7 @@ class Widget2(QMainWindow):
         if self.ui.lb_num_day.text() == "День: 1":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[0]["practical"], answer)
+                check = check_answer(co, course[0]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_1.setStyleSheet(green_style)
                     progress[1][0] = 1
@@ -415,7 +336,7 @@ class Widget2(QMainWindow):
         elif self.ui.lb_num_day.text() == "День: 2":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[1]["practical"], answer)
+                check = check_answer(co, course[1]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_2.setStyleSheet(green_style)
                     progress[2][0] = 1
@@ -425,7 +346,7 @@ class Widget2(QMainWindow):
         elif self.ui.lb_num_day.text() == "День: 3":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[2]["practical"], answer)
+                check = check_answer(co, course[2]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_3.setStyleSheet(green_style)
                     progress[3][0] = 1
@@ -435,7 +356,7 @@ class Widget2(QMainWindow):
         elif self.ui.lb_num_day.text() == "День: 4":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[3]["practical"], answer)
+                check = check_answer(co, course[3]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_4.setStyleSheet(green_style)
                     progress[4][0] = 1
@@ -445,7 +366,7 @@ class Widget2(QMainWindow):
         elif self.ui.lb_num_day.text() == "День: 5":
             answer = self.ui.te_answer.toPlainText()
             if answer != "Відповідь:":
-                check = check_answer(course[4]["practical"], answer)
+                check = check_answer(co, course[4]["practical"], answer)
                 if "+" in check:
                     self.ui.btn_day_5.setStyleSheet(green_style)
                     progress[5][0] = 1
