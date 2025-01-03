@@ -1,4 +1,4 @@
 PyQt5
 cohere
 requests
-git clone https://github.com/alexandrgerasym4uk/AI_funcs.git
+git+https://github.com/alexandrgerasym4uk/AI_funcs.git
